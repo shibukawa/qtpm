@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 2.8.11)
+project({{.Target}})
+
+# enable Qt
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+if (DEFINED ENV{QTDIR})
+    set(CMAKE_PREFIX_PATH "$ENV{QTDIR}")
+endif ()
+
+{{range $index, $qtmodule := .QtModules}}find_package(Qt5{{$qtmodule}} REQUIRED)
+{{end}}
+
+include_directories("${PROJECT_SOURCE_DIR}/include")
+add_executable({{.TargetSmall}} ${PROJECT_SOURCE_DIR}/src/main.cpp {{range $index, $source := .Sources}} {{$source}}{{end}})
+qt5_use_modules({{.TargetSmall}}{{range $index, $qtmodule := .QtModules}} {{$qtmodule}}{{end}})
+
+# set up include-directories
+include("CMakeExtra.txt" OPTIONAL)
+
+{{if .HasTest}}
+# enable tests
+enable_testing()
+find_package(Qt5Test REQUIRED)
+
+{{range $index, $test := .Tests}}add_executable({{$test}} test/{{$test}}.cpp{{range $index, $source := .ExtraTestSources}} {{$source}}{{end}}{{range $index, $source := .Sources}} {{$source}}{{end}})
+add_test({{$test}})
+qt5_use_modules({{$test}} Test{{range $index, $qtmodule := .QtModules}} {{$qtmodule}}{{end}})
+{{end}}
+{{end}}

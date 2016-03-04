@@ -1,0 +1,17 @@
+# - Config file for the {{.Target}} package
+# It defines the following variables
+#  {{.TargetLarge}}_INCLUDE_DIRS - include directories for {{.Target}}
+#  {{.TargetLarge}}_LIBRARIES    - libraries to link against
+ 
+# Compute paths
+get_filename_component({{.TargetLarge}}_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set({{.TargetLarge}}_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+ 
+# Our library dependencies (contains definitions for IMPORTED targets)
+if(NOT TARGET foo AND NOT {{.Target}}_BINARY_DIR)
+  include("$\{{{.TargetLarge}}_CMAKE_DIR}/{{.Target}}Targets.cmake")
+endif()
+ 
+# These are IMPORTED targets created by {{.Target}}Targets.cmake
+set({{.TargetLarge}}_LIBRARIES foo)
+set({{.TargetLarge}}_EXECUTABLE bar)
