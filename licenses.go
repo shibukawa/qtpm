@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -50,6 +51,7 @@ type licenseVariable struct {
 }
 
 func NormalizeLicense(licenseName string) (string, string, error) {
+	licenseName = strings.ToLower(licenseName)
 	if alias, ok := aliases[licenseName]; ok {
 		licenseName = alias
 	}
@@ -100,11 +102,7 @@ func NormalizeLicense(licenseName string) (string, string, error) {
 	return "", "", errors.New("invalid license")
 }
 
-func WriteLicense(license string) error {
-	dir, err := filepath.Abs(".")
-	if err != nil {
-		return err
-	}
+func WriteLicense(dir, license string) error {
 	file, err := os.Create(filepath.Join(dir, "LICENSE.rst"))
 	if err != nil {
 		return err

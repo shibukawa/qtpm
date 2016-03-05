@@ -21,7 +21,7 @@ type PackageConfig struct {
 }
 
 type PackageUserConfig struct {
-	QtDir      string   `toml:"qtdir"`
+	QtDir string `toml:"qtdir"`
 }
 
 func LoadConfig(dir string, traverse bool) (*PackageConfig, string, error) {

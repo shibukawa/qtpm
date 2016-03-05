@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func prepareDir(name, license, packageType string) *PackageConfig {
+func prepareProject(name, license, packageType string) (*PackageConfig, string) {
 	dir, err := filepath.Abs(".")
 	if err != nil {
 		log.Fatalln("Can't get directory name")
@@ -24,13 +24,13 @@ func prepareDir(name, license, packageType string) *PackageConfig {
 		License: licenseName,
 		Type:    packageType,
 	}
-	WriteLicense(licenseKey)
-	initDirs(dir)
-	return config
+	WriteLicense(dir, licenseKey)
+	return config, dir
 }
 
-func initDirs(workDir string) {
+func initDirs(workDir string, extraDirs ...string) {
 	dirs := []string{"src", "include", "test", "build", "vendor"}
+	dirs = append(dirs, extraDirs...)
 	for _, dir := range dirs {
 		os.MkdirAll(filepath.Join(workDir, dir), 0777)
 	}
@@ -38,22 +38,24 @@ func initDirs(workDir string) {
 
 func InitLibrary(name, license string) {
 	packageName, parentName := ParseName(name)
-	config := prepareDir(packageName, license, "library")
+	config, dir := prepareProject(packageName, license, "library")
+	initDirs(dir)
 	config.Save(".")
 	variable := &SourceVariable{
-		Target: name,
+		Target: packageName,
 		Parent: parentName,
 	}
-	AddClass(".", name, true)
-	AddTest(".", name)
-	WriteTemplate(".", "include", strings.ToLower(name)+"_global.h", "libglobal.h", variable)
+	AddClass(".", packageName, true)
+	AddTest(".", packageName)
+	WriteTemplate(".", "include", strings.ToLower(packageName)+"_global.h", "libglobal.h", variable)
 	WriteTemplate(".", "", ".gitignore", "dotgitignore", variable)
 	WriteTemplate(".", "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
 }
 
 func InitApplication(name, license string) {
 	packageName, _ := ParseName(name)
-	config := prepareDir(name, license, "application")
+	config, dir := prepareProject(packageName, license, "application")
+	initDirs(dir, "resource")
 	config.QtModules = []string{"Widgets"}
 	config.Save(".")
 

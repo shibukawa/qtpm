@@ -1,13 +1,13 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"io/ioutil"
-"strings"
+	"strings"
 )
 
 func Build() {
@@ -26,6 +26,10 @@ func Build() {
 	cmd := exec.Command("cmake", "..")
 	cmd.Dir = buildPath
 	cmd.Env = append(os.Environ(), "INSTALL_CMAKE_DIR="+vendorPath)
+	qtDir := FindQt(dir)
+	if qtDir != "" {
+		cmd.Env = append(cmd.Env, "QTDIR="+qtDir)
+	}
 	out, err := cmd.CombinedOutput()
 	log.Println(string(out))
 	if err != nil {

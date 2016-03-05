@@ -1,12 +1,12 @@
 #include <QString>
 #include <QtTest>
-#include "{{.TargetSmall}}.h"
+#include "[[.TargetSmall]].h"
 
-class Test{{.Target}} : public QObject {
+class Test[[.Target]] : public QObject {
     Q_OBJECT
 
 public:
-    Test{{.Target}}();
+    Test[[.Target]]();
 
 private Q_SLOTS:
     void initTestCase();
@@ -17,29 +17,29 @@ private Q_SLOTS:
     void testCase1();
 };
 
-Test{{.Target}}::Test{{.Target}}() {
+Test[[.Target]]::Test[[.Target]]() {
 }
 
-void Test{{.Target}}::initTestCase() {
+void Test[[.Target]]::initTestCase() {
     // This method is called before the first testfunction is executed.
 }
 
-void Test{{.Target}}::cleanupTestCase() {
+void Test[[.Target]]::cleanupTestCase() {
     // This method is called after the last testfunction was executed.
 }
 
-void Test{{.Target}}::init() {
+void Test[[.Target]]::init() {
     // This method is called before each testfunction is executed.
 }
 
-void Test{{.Target}}::cleanup() {
+void Test[[.Target]]::cleanup() {
     // This method is called after every testfunction.
 }
 
-void Test{{.Target}}::testCase1() {
+void Test[[.Target]]::testCase1() {
     QVERIFY2(true, "Failure");
 }
 
-QTEST_APPLESS_MAIN(Test{{.Target}})
+QTEST_APPLESS_MAIN(Test[[.Target]])
 
-#include "test{{.TargetSmall}}.moc"
+#include "test[[.TargetSmall]].moc"

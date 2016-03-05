@@ -1,6 +1,6 @@
-#include "{{.TargetSmall}}.h"
+#include "[[.TargetSmall]].h"
 
-{{.Target}}::{{.Target}}({{.Parent}} *parent) : {{.Parent}}(parent)
+[[.Target]]::[[.Target]]([[.Parent]] *parent) : [[.Parent]](parent)
 {
 
 }

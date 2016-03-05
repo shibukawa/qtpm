@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,14 +16,15 @@ type SourceVariable struct {
 	TargetLarge      string
 	Parent           string
 	Library          bool
-	VersionMinor     string
-	VersionMajor     string
-	VersionPatch     string
+	VersionMinor     int
+	VersionMajor     int
+	VersionPatch     int
 	HasTest          bool
 	QtModules        []string
 	Sources          []string
+	Headers          []string
 	Tests            []string
-	ExtraTestSources []string
+	ExtraTestSources string
 }
 
 func AddTest(basePath, name string) {
@@ -44,6 +46,16 @@ func AddClass(basePath, name string, isLibrary bool) {
 	WriteTemplate(basePath, "src", strings.ToLower(className)+".cpp", "classsource.cpp", variable)
 }
 
+func AddLicense(basePath string, config *PackageConfig, name string) {
+	licenseKey, licenseName, err := NormalizeLicense(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	config.License = licenseName
+	WriteLicense(basePath, licenseKey)
+	config.Save(basePath)
+}
+
 func AddCMakeForApp(basePath string, config *PackageConfig) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
@@ -57,11 +69,22 @@ func AddCMakeForApp(basePath string, config *PackageConfig) {
 	if err != nil {
 		return
 	}
+	var extraTestSources []string
 	for _, source := range sources {
 		if strings.HasSuffix(source.Name(), ".cpp") && source.Name() != "main.cpp" {
-			variable.Sources = append(variable.Sources, "src/"+source.Name())
+			variable.Sources = append(variable.Sources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
+			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
 		}
 	}
+
+	headers, err := ioutil.ReadDir("include")
+	if err != nil {
+		return
+	}
+	for _, header := range headers {
+		variable.Headers = append(variable.Headers, "${PROJECT_SOURCE_DIR}/include/"+header.Name())
+	}
+
 	tests, err := ioutil.ReadDir("test")
 	if err == nil {
 		for _, test := range tests {
@@ -71,11 +94,12 @@ func AddCMakeForApp(basePath string, config *PackageConfig) {
 			if strings.HasPrefix(test.Name(), "test_") {
 				variable.Tests = append(variable.Tests, test.Name()[:len(test.Name())-4])
 			} else {
-				variable.ExtraTestSources = append(variable.ExtraTestSources, "test/"+test.Name())
+				extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/test/"+test.Name())
 			}
 		}
 	}
 	variable.HasTest = len(variable.Tests) > 0
+	variable.ExtraTestSources = strings.Join(extraTestSources, " ")
 	WriteTemplate(basePath, "", "CMakeLists.txt", "CMakeListsApp.txt", variable)
 }
 
@@ -86,15 +110,27 @@ func AddCMakeForLib(basePath string, config *PackageConfig) {
 		Library:   true,
 	}
 	switch len(config.Version) {
-
+	case 0:
+		variable.VersionMajor = 1
+	case 1:
+		variable.VersionMajor = config.Version[0]
+	case 2:
+		variable.VersionMajor = config.Version[0]
+		variable.VersionMinor = config.Version[1]
+	default:
+		variable.VersionMajor = config.Version[0]
+		variable.VersionMinor = config.Version[1]
+		variable.VersionPatch = config.Version[2]
 	}
 	sources, err := ioutil.ReadDir("src")
 	if err != nil {
 		return
 	}
+	var extraTestSources []string
 	for _, source := range sources {
 		if strings.HasSuffix(source.Name(), ".cpp") {
-			variable.Sources = append(variable.Sources, "src/"+source.Name())
+			variable.Sources = append(variable.Sources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
+			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
 		}
 	}
 	tests, err := ioutil.ReadDir("test")
@@ -105,16 +141,15 @@ func AddCMakeForLib(basePath string, config *PackageConfig) {
 			}
 			if strings.HasPrefix(test.Name(), "test_") {
 				variable.Tests = append(variable.Tests, test.Name()[:len(test.Name())-4])
-			} else {
-				variable.ExtraTestSources = append(variable.ExtraTestSources, "test/"+test.Name())
 			}
+			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/test/"+test.Name())
 		}
 	}
 	variable.HasTest = len(variable.Tests) > 0
+	variable.ExtraTestSources = strings.Join(extraTestSources, " ")
+
 	WriteTemplate(basePath, "", "CMakeLists.txt", "CMakeListsLib.txt", variable)
 	WriteTemplate(basePath, "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
-	WriteTemplate(basePath, "", variable.Target+"Config.cmake.in", "PKGConfig.cmake.in", variable)
-	WriteTemplate(basePath, "", variable.Target+"ConfigVersion.cmake.in", "PKGConfigVersion.cmake.in", variable)
 }
 
 func WriteTemplate(basePath, dir, fileName, templateName string, variable *SourceVariable) error {
@@ -139,17 +174,25 @@ func WriteTemplate(basePath, dir, fileName, templateName string, variable *Sourc
 		return err
 	}
 	src := MustAsset("templates/" + templateName)
-	tmp := template.Must(template.New(templateName).Parse(string(src)))
-	return tmp.Execute(file, variable)
+	tmp := template.Must(template.New(templateName).Delims("[[", "]]").Parse(string(src)))
+	err = tmp.Execute(file, variable)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return err
 }
 
 func ParseName(name string) (string, string) {
 	names := strings.Split(name, "@")
-	name = names[0]
-	if strings.HasPrefix(name, "Test") {
-		name = name[4:]
+	className := names[0]
+	if strings.HasPrefix(className, "Test") {
+		className = className[4:]
+	} else if className == "" {
+		path, _ := filepath.Abs(".")
+		_, className = filepath.Split(path)
 	}
-	className := strings.ToUpper(name[:1]) + name[1:]
+	className = strings.ToUpper(className[:1]) + className[1:]
+
 	var parentName string
 	if len(names) == 2 {
 		parentName = strings.ToUpper(names[1][:2]) + names[1][2:]
