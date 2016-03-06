@@ -47,9 +47,9 @@ func InitLibrary(name, license string) {
 	}
 	AddClass(".", packageName, true)
 	AddTest(".", packageName)
-	WriteTemplate(".", "src", strings.ToLower(packageName)+"_global.h", "libglobal.h", variable)
-	WriteTemplate(".", "", ".gitignore", "dotgitignore", variable)
-	WriteTemplate(".", "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
+	WriteTemplate(".", "src", strings.ToLower(packageName)+"_global.h", "libglobal.h", variable, false)
+	WriteTemplate(".", "", ".gitignore", "dotgitignore", variable, false)
+	WriteTemplate(".", "", "CMakeExtra.txt", "CMakeExtra.txt", variable, false)
 }
 
 func InitApplication(name, license string) {
@@ -63,7 +63,7 @@ func InitApplication(name, license string) {
 		Target:    packageName,
 		QtModules: []string{"Widgets"},
 	}
-	WriteTemplate(".", "src", "main.cpp", "main.cpp", variable)
-	WriteTemplate(".", "", ".gitignore", "dotgitignore", variable)
-	WriteTemplate(".", "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
+	WriteTemplate(".", "src", "main.cpp", "main.cpp", variable, false)
+	WriteTemplate(".", "", ".gitignore", "dotgitignore", variable, false)
+	WriteTemplate(".", "", "CMakeExtra.txt", "CMakeExtra.txt", variable, false)
 }

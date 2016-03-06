@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,16 +21,13 @@ type SourceVariable struct {
 	VersionMinor     int
 	VersionMajor     int
 	VersionPatch     int
+	Requires         []string
 	QtModules        []string
 	Sources          []string
 	Headers          []string
 	Resources        []string
 	Tests            []string
 	ExtraTestSources []string
-}
-
-func (sv SourceVariable) Hash() string {
-	return "abc"
 }
 
 func (sv *SourceVariable) SearchFiles(dir string) {
@@ -83,7 +81,7 @@ func AddTest(basePath, name string) {
 	variable := &SourceVariable{
 		Target: name,
 	}
-	WriteTemplate(basePath, "test", strings.ToLower(name)+"_test.cpp", "testclass.cpp", variable)
+	WriteTemplate(basePath, "test", strings.ToLower(name)+"_test.cpp", "testclass.cpp", variable, false)
 }
 
 func AddClass(basePath, name string, isLibrary bool) {
@@ -93,8 +91,8 @@ func AddClass(basePath, name string, isLibrary bool) {
 		Parent:  parent,
 		Library: isLibrary,
 	}
-	WriteTemplate(basePath, "src", strings.ToLower(className)+".h", "classsource.h", variable)
-	WriteTemplate(basePath, "src", strings.ToLower(className)+".cpp", "classsource.cpp", variable)
+	WriteTemplate(basePath, "src", strings.ToLower(className)+".h", "classsource.h", variable, false)
+	WriteTemplate(basePath, "src", strings.ToLower(className)+".cpp", "classsource.cpp", variable, false)
 }
 
 func AddLicense(config *PackageConfig, name string) {
@@ -107,17 +105,19 @@ func AddLicense(config *PackageConfig, name string) {
 	config.Save()
 }
 
-func AddCMakeForApp(config *PackageConfig) {
+func AddCMakeForApp(config *PackageConfig) (bool, error) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
 		QtModules: InsertCore(config.QtModules),
 		Library:   true,
 	}
 	variable.SearchFiles(config.Dir)
-	WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsApp.txt", variable)
+	sort.Strings(variable.QtModules)
+	sort.Strings(variable.Requires)
+	return WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsApp.txt", variable, true)
 }
 
-func AddCMakeForLib(config *PackageConfig) {
+func AddCMakeForLib(config *PackageConfig) (bool, error) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
 		QtModules: InsertCore(config.QtModules),
@@ -127,12 +127,14 @@ func AddCMakeForLib(config *PackageConfig) {
 	variable.VersionMinor = config.Version[1]
 	variable.VersionPatch = config.Version[2]
 	variable.SearchFiles(config.Dir)
+	sort.Strings(variable.QtModules)
+	sort.Strings(variable.Requires)
 
-	WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsLib.txt", variable)
-	WriteTemplate(config.Dir, "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
+	WriteTemplate(config.Dir, "", "CMakeExtra.txt", "CMakeExtra.txt", variable, false)
+	return WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsLib.txt", variable, true)
 }
 
-func WriteTemplate(basePath, dir, fileName, templateName string, variable *SourceVariable) error {
+func WriteTemplate(basePath, dir, fileName, templateName string, variable *SourceVariable, checkFileChange bool) (bool, error) {
 	variable.TargetSmall = strings.ToLower(variable.Target)
 	variable.TargetLarge = strings.ToUpper(variable.Target)
 	if variable.Parent == "" {
@@ -146,20 +148,24 @@ func WriteTemplate(basePath, dir, fileName, templateName string, variable *Sourc
 		filePath, err = filepath.Abs(filepath.Join(basePath, dir, fileName))
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
 	os.MkdirAll(filepath.Dir(filePath), 0744)
-	file, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
+	var buffer bytes.Buffer
 	src := MustAsset("templates/" + templateName)
 	tmp := template.Must(template.New(templateName).Delims("[[", "]]").Parse(string(src)))
-	err = tmp.Execute(file, variable)
+	err = tmp.Execute(&buffer, variable)
 	if err != nil {
-		log.Fatalln(err)
+		return false, err
 	}
-	return err
+	if checkFileChange {
+		existingContent, err := ioutil.ReadFile(filePath)
+		if err == nil && bytes.Compare(existingContent, buffer.Bytes()) == 0 {
+			return false, nil
+		}
+	}
+	err = ioutil.WriteFile(filePath, buffer.Bytes(), 0644)
+	return true, err
 }
 
 func ParseName(name string) (string, string) {
