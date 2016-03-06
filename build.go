@@ -17,12 +17,12 @@ func Build() {
 	}
 	buildPath := filepath.Join(dir, "build")
 	vendorPath := filepath.Join(dir, "vendor")
-	if config.Type == "library" {
-		AddCMakeForLib(dir, config)
-	} else {
+	if config.IsApplication {
 		AddCMakeForApp(dir, config)
+	} else {
+		AddCMakeForLib(dir, config)
 	}
-	os.MkdirAll(buildPath, 0777)
+	os.MkdirAll(buildPath, 0744)
 	cmd := exec.Command("cmake", "..")
 	cmd.Dir = buildPath
 	cmd.Env = append(os.Environ(), "INSTALL_CMAKE_DIR="+vendorPath)
@@ -39,10 +39,10 @@ func Build() {
 	makeCmd := exec.Command("make")
 	makeCmd.Dir = buildPath
 	out, err = makeCmd.CombinedOutput()
+	log.Println(string(out))
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(string(out))
 }
 
 func FindQt(dir string) string {

@@ -1,3 +1,5 @@
+# qtpm hash: [[.Hash]]
+
 cmake_minimum_required(VERSION 3.1.0)[[$root := .]]
 
 # project global setting
@@ -11,10 +13,11 @@ set(CMAKE_CXX_STANDARD 11)
 # enable Qt
 
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-if (DEFINED ENV{QTDIR})
+if(DEFINED ENV{QTDIR})
     set(CMAKE_PREFIX_PATH "$ENV{QTDIR}")
-endif ()
+endif()
 
 [[range $module := .QtModules]]find_package(Qt5[[$module]] REQUIRED)
 [[end]]
@@ -25,8 +28,9 @@ include("CMakeExtra.txt" OPTIONAL)
 
 # build setting
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
-add_executable([[.TargetSmall]] ${PROJECT_SOURCE_DIR}/src/main.cpp [[range .Sources]] [[.]][[end]])
+include_directories("${PROJECT_SOURCE_DIR}/src")
+[[if gt (len .Resources) 0]]qt5_add_resources(QRC[[range .Resources]] [[.]][[end]])[[end]]
+add_executable([[.TargetSmall]] ${PROJECT_SOURCE_DIR}/src/main.cpp [[range .Sources]] [[.]][[end]][[if gt (len .Resources) 0]] ${QRC}[[end]])
 qt5_use_modules([[.TargetSmall]][[range $module := .QtModules]] [[$module]][[end]])
 
 [[if gt (len .Tests) 0]]
@@ -35,7 +39,7 @@ qt5_use_modules([[.TargetSmall]][[range $module := .QtModules]] [[$module]][[end
 enable_testing()
 find_package(Qt5Test REQUIRED)
 [[range $test := .Tests]]
-add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp [[$root.ExtraTestSources]])
+add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp [[$root.ExtraTestSources]][[if gt (len .Resources) 0]] ${QRC}[[end]])
 add_test(NAME [[$test]] COMMAND [[$test]] WORKING_DIRECTORY ${PROJECT_SOURCE_DIR/build)
 qt5_use_modules([[$test]] Test[[range $module := $root.QtModules]] [[$module]][[end]])
 [[end]]

@@ -11,13 +11,13 @@ const packageFileName = "qtpackage.toml"
 const userPackageFileName = "qtpackage.user.toml"
 
 type PackageConfig struct {
-	Name      string   `toml:"name"`
-	Author    string   `toml:"author"`
-	License   string   `toml:"license"`
-	Type      string   `toml:"type"`
-	Requires  []string `toml:"requires"`
-	QtModules []string `toml:"qtmodules"`
-	Version   []int    `toml:"version"`
+	Name          string   `toml:"name"`
+	Author        string   `toml:"author"`
+	License       string   `toml:"license"`
+	Requires      []string `toml:"requires"`
+	QtModules     []string `toml:"qtmodules"`
+	Version       []int    `toml:"version"`
+	IsApplication bool     `toml:"-"`
 }
 
 type PackageUserConfig struct {
@@ -39,6 +39,8 @@ func LoadConfig(dir string, traverse bool) (*PackageConfig, string, error) {
 			if err != nil {
 				return nil, "", err
 			}
+			_, err = os.Stat(filepath.Join(dir, "src", "main.cpp"))
+			config.IsApplication = !os.IsNotExist(err)
 			return config, dir, nil
 		}
 		parent := filepath.Dir(dir)

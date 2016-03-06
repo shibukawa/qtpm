@@ -5,3 +5,4 @@
 
 }
 
+#include "moc_[[.TargetSmall]].cpp"

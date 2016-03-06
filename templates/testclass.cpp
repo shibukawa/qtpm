@@ -42,4 +42,4 @@ void Test[[.Target]]::testCase1() {
 
 QTEST_APPLESS_MAIN(Test[[.Target]])
 
-#include "test[[.TargetSmall]].moc"
+#include "[[.TargetSmall]]_test.moc"

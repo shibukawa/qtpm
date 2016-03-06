@@ -54,7 +54,7 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		AddClass(dir, *className, config.Type == "library")
+		AddClass(dir, *className, !config.IsApplication)
 	case addTestCommand.FullCommand():
 		_, dir, err := LoadConfig(".", true)
 		if err != nil {

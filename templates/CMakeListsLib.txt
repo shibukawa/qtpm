@@ -1,3 +1,5 @@
+# qtpm hash: [[.Hash]]
+
 cmake_minimum_required(VERSION 3.1.0)[[$root := .]]
 
 # project global setting
@@ -29,10 +31,11 @@ endif()
 # enable Qt
 
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-if (DEFINED ENV{QTDIR})
+if(DEFINED ENV{QTDIR})
     set(CMAKE_PREFIX_PATH "$ENV{QTDIR}")
-endif ()
+endif()
 [[range $index, $qtmodule := .QtModules]]find_package(Qt5[[$qtmodule]] REQUIRED)
 [[end]]
 
@@ -42,9 +45,11 @@ include("CMakeExtra.txt")
 
 # build setting
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
-add_library([[.TargetSmall]] SHARED [[range $source := .Sources]][[$source]] [[end]])
+include_directories("${PROJECT_SOURCE_DIR}/src")
+[[if gt (len .Resources) 0]]qt5_add_resources(QRC[[range .Resources]] [[.]][[end]])[[end]]
+add_library([[.TargetSmall]] SHARED [[range $source := .Sources]] [[$source]][[end]][[if gt (len .Resources) 0]] ${QRC}[[end]])
 SET_TARGET_PROPERTIES([[.TargetSmall]] PROPERTIES VERSION ${[[.TargetLarge]]_VERSION} SOVERSION ${[[.TargetLarge]]_MAJOR_VERSION})
+qt5_use_modules([[.TargetSmall]][[range $module := $root.QtModules]] [[$module]][[end]])
 
 [[if gt (len .Tests) 0]]
 # enable tests
@@ -52,7 +57,7 @@ SET_TARGET_PROPERTIES([[.TargetSmall]] PROPERTIES VERSION ${[[.TargetLarge]]_VER
 enable_testing()
 find_package(Qt5Test REQUIRED)
 [[range $test := .Tests]]
-add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp [[$root.ExtraTestSources]])
+add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp [[$root.ExtraTestSources]] [[if gt (len $root.Resources) 0]] ${QRC}[[end]])
 add_test(NAME [[$test]] COMMAND [[$test]] WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 qt5_use_modules([[$test]] Test[[range $module := $root.QtModules]] [[$module]][[end]])
 [[end]]

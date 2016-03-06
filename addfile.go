@@ -23,8 +23,13 @@ type SourceVariable struct {
 	QtModules        []string
 	Sources          []string
 	Headers          []string
+	Resources        []string
 	Tests            []string
 	ExtraTestSources string
+}
+
+func (sv SourceVariable) Hash() string {
+	return "abc"
 }
 
 func AddTest(basePath, name string) {
@@ -32,7 +37,7 @@ func AddTest(basePath, name string) {
 	variable := &SourceVariable{
 		Target: name,
 	}
-	WriteTemplate(basePath, "test", "test_"+strings.ToLower(name)+".cpp", "testclass.cpp", variable)
+	WriteTemplate(basePath, "test", strings.ToLower(name)+"_test.cpp", "testclass.cpp", variable)
 }
 
 func AddClass(basePath, name string, isLibrary bool) {
@@ -42,7 +47,7 @@ func AddClass(basePath, name string, isLibrary bool) {
 		Parent:  parent,
 		Library: isLibrary,
 	}
-	WriteTemplate(basePath, "include", strings.ToLower(className)+".h", "classsource.h", variable)
+	WriteTemplate(basePath, "src", strings.ToLower(className)+".h", "classsource.h", variable)
 	WriteTemplate(basePath, "src", strings.ToLower(className)+".cpp", "classsource.cpp", variable)
 }
 
@@ -59,11 +64,8 @@ func AddLicense(basePath string, config *PackageConfig, name string) {
 func AddCMakeForApp(basePath string, config *PackageConfig) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
-		QtModules: config.QtModules,
+		QtModules: InsertCore(config.QtModules),
 		Library:   true,
-	}
-	switch len(config.Version) {
-
 	}
 	sources, err := ioutil.ReadDir("src")
 	if err != nil {
@@ -71,18 +73,22 @@ func AddCMakeForApp(basePath string, config *PackageConfig) {
 	}
 	var extraTestSources []string
 	for _, source := range sources {
-		if strings.HasSuffix(source.Name(), ".cpp") && source.Name() != "main.cpp" {
-			variable.Sources = append(variable.Sources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
-			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
+		name := source.Name()
+		path := "${PROJECT_SOURCE_DIR}/src/" + name
+		if strings.HasSuffix(name, ".cpp") && name != "main.cpp" {
+			variable.Sources = append(variable.Sources, path)
+			extraTestSources = append(extraTestSources, path)
+		} else if strings.HasSuffix(name, ".h") {
+			variable.Headers = append(variable.Headers, path)
 		}
 	}
 
-	headers, err := ioutil.ReadDir("include")
+	resources, err := ioutil.ReadDir("resource")
 	if err != nil {
 		return
 	}
-	for _, header := range headers {
-		variable.Headers = append(variable.Headers, "${PROJECT_SOURCE_DIR}/include/"+header.Name())
+	for _, resource := range resources {
+		variable.Resources = append(variable.Resources, "${PROJECT_SOURCE_DIR}/resource/"+resource.Name())
 	}
 
 	tests, err := ioutil.ReadDir("test")
@@ -91,7 +97,7 @@ func AddCMakeForApp(basePath string, config *PackageConfig) {
 			if !strings.HasSuffix(test.Name(), ".cpp") {
 				continue
 			}
-			if strings.HasPrefix(test.Name(), "test_") {
+			if strings.HasSuffix(test.Name(), "_test.cpp") {
 				variable.Tests = append(variable.Tests, test.Name()[:len(test.Name())-4])
 			} else {
 				extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/test/"+test.Name())
@@ -106,7 +112,7 @@ func AddCMakeForApp(basePath string, config *PackageConfig) {
 func AddCMakeForLib(basePath string, config *PackageConfig) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
-		QtModules: config.QtModules,
+		QtModules: InsertCore(config.QtModules),
 		Library:   true,
 	}
 	switch len(config.Version) {
@@ -139,7 +145,7 @@ func AddCMakeForLib(basePath string, config *PackageConfig) {
 			if !strings.HasSuffix(test.Name(), ".cpp") {
 				continue
 			}
-			if strings.HasPrefix(test.Name(), "test_") {
+			if strings.HasSuffix(test.Name(), "_test.cpp") {
 				variable.Tests = append(variable.Tests, test.Name()[:len(test.Name())-4])
 			}
 			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/test/"+test.Name())
@@ -168,7 +174,7 @@ func WriteTemplate(basePath, dir, fileName, templateName string, variable *Sourc
 	if err != nil {
 		return err
 	}
-	os.MkdirAll(filepath.Dir(filePath), 0777)
+	os.MkdirAll(filepath.Dir(filePath), 0744)
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -206,4 +212,17 @@ var re2 = regexp.MustCompile("[-]")
 
 func CleanName(name string) string {
 	return re2.ReplaceAllString(re1.ReplaceAllString(name, ""), "_")
+}
+
+func InsertCore(modules []string) []string {
+	found := false
+	for _, module := range modules {
+		if module == "Core" {
+			found = true
+		}
+	}
+	if !found {
+		modules = append(modules, "Core")
+	}
+	return modules
 }
