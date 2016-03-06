@@ -15,9 +15,14 @@ func Build() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	BuildPackage(config.Dir, config)
+}
+
+func BuildPackage(rootPackageDir string, config *PackageConfig) {
 	buildPath := filepath.Join(config.Dir, "build")
-	vendorPath := filepath.Join(config.Dir, "vendor")
+	vendorPath := filepath.Join(rootPackageDir, "vendor")
 	var changed bool
+	var err error
 	if config.IsApplication {
 		changed, err = AddCMakeForApp(config)
 	} else {
@@ -28,10 +33,14 @@ func Build() {
 	}
 	if changed {
 		os.MkdirAll(buildPath, 0744)
-		cmd := exec.Command("cmake", "..")
+		var cmd *exec.Cmd
+		if config.IsApplication {
+			cmd = exec.Command("cmake", "..")
+		} else {
+			cmd = exec.Command("cmake", "..", "-DCMAKE_INSTALL_PREFIX="+vendorPath)
+		}
 		cmd.Dir = buildPath
-		cmd.Env = append(os.Environ(), "INSTALL_CMAKE_DIR="+vendorPath)
-		qtDir := FindQt(config.Dir)
+		qtDir := FindQt(rootPackageDir)
 		if qtDir != "" {
 			cmd.Env = append(cmd.Env, "QTDIR="+qtDir)
 		}
@@ -47,6 +56,15 @@ func Build() {
 	log.Println(string(out))
 	if err != nil {
 		log.Fatal(err)
+	}
+	if !config.IsApplication {
+		makeCmd := exec.Command("make", "install")
+		makeCmd.Dir = buildPath
+		out, err := makeCmd.CombinedOutput()
+		log.Println(string(out))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

@@ -63,4 +63,4 @@ qt5_use_modules([[$test]] Test[[range $module := $root.QtModules]] [[$module]][[
 # install setting
 
 INSTALL(TARGETS [[.TargetSmall]] LIBRARY DESTINATION lib)
-INSTALL(FILES[[range $header := .Headers]] [[$header]][[end]] DESTINATION include)
+INSTALL(FILES[[range $header := .Headers]] [[$header]][[end]] DESTINATION include/[[.TargetSmall]])
