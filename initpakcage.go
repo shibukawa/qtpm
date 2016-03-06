@@ -22,6 +22,7 @@ func prepareProject(name, license string) (*PackageConfig, string) {
 		Name:    name,
 		Author:  UserName(),
 		License: licenseName,
+		Dir:     dir,
 	}
 	WriteLicense(dir, licenseKey)
 	return config, dir
@@ -39,7 +40,7 @@ func InitLibrary(name, license string) {
 	packageName, parentName := ParseName(name)
 	config, dir := prepareProject(packageName, license)
 	initDirs(dir)
-	config.Save(".")
+	config.Save()
 	variable := &SourceVariable{
 		Target: packageName,
 		Parent: parentName,
@@ -56,7 +57,7 @@ func InitApplication(name, license string) {
 	config, dir := prepareProject(packageName, license)
 	initDirs(dir, "resource")
 	config.QtModules = []string{"Widgets"}
-	config.Save(".")
+	config.Save()
 
 	variable := &SourceVariable{
 		Target:    packageName,

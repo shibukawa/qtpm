@@ -11,22 +11,22 @@ import (
 )
 
 func Build() {
-	config, dir, err := LoadConfig(".", true)
+	config, err := LoadConfig(".", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	buildPath := filepath.Join(dir, "build")
-	vendorPath := filepath.Join(dir, "vendor")
+	buildPath := filepath.Join(config.Dir, "build")
+	vendorPath := filepath.Join(config.Dir, "vendor")
 	if config.IsApplication {
-		AddCMakeForApp(dir, config)
+		AddCMakeForApp(config)
 	} else {
-		AddCMakeForLib(dir, config)
+		AddCMakeForLib(config)
 	}
 	os.MkdirAll(buildPath, 0744)
 	cmd := exec.Command("cmake", "..")
 	cmd.Dir = buildPath
 	cmd.Env = append(os.Environ(), "INSTALL_CMAKE_DIR="+vendorPath)
-	qtDir := FindQt(dir)
+	qtDir := FindQt(config.Dir)
 	if qtDir != "" {
 		cmd.Env = append(cmd.Env, "QTDIR="+qtDir)
 	}

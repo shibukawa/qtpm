@@ -29,7 +29,7 @@ include("CMakeExtra.txt" OPTIONAL)
 # build setting
 
 include_directories("${PROJECT_SOURCE_DIR}/src")
-[[if gt (len .Resources) 0]]qt5_add_resources(QRC[[range .Resources]] [[.]][[end]])[[end]]
+[[if gt (len .Resources) 0]]qt5_add_resources(QRC[[range .Resources]] ${PROJECT_SOURCE_DIR}/resource/[[.]][[end]])[[end]]
 add_executable([[.TargetSmall]] ${PROJECT_SOURCE_DIR}/src/main.cpp [[range .Sources]] [[.]][[end]][[if gt (len .Resources) 0]] ${QRC}[[end]])
 qt5_use_modules([[.TargetSmall]][[range $module := .QtModules]] [[$module]][[end]])
 
@@ -39,7 +39,7 @@ qt5_use_modules([[.TargetSmall]][[range $module := .QtModules]] [[$module]][[end
 enable_testing()
 find_package(Qt5Test REQUIRED)
 [[range $test := .Tests]]
-add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp [[$root.ExtraTestSources]][[if gt (len .Resources) 0]] ${QRC}[[end]])
+add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp[[range $source := $root.ExtraTestSources]] {PROJECT_SOURCE_DIR}/test/[[$source]][[end]][[if gt (len .Resources) 0]] ${QRC}[[end]])
 add_test(NAME [[$test]] COMMAND [[$test]] WORKING_DIRECTORY ${PROJECT_SOURCE_DIR/build)
 qt5_use_modules([[$test]] Test[[range $module := $root.QtModules]] [[$module]][[end]])
 [[end]]

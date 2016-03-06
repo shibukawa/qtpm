@@ -50,22 +50,22 @@ func main() {
 	case initLibCommand.FullCommand():
 		InitLibrary(*libName, *libLicense)
 	case addClassCommand.FullCommand():
-		config, dir, err := LoadConfig(".", true)
+		config, err := LoadConfig(".", true)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		AddClass(dir, *className, !config.IsApplication)
+		AddClass(config.Dir, *className, !config.IsApplication)
 	case addTestCommand.FullCommand():
-		_, dir, err := LoadConfig(".", true)
+		config, err := LoadConfig(".", true)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		AddTest(dir, *testName)
+		AddTest(config.Dir, *testName)
 	case addLicenseCommand.FullCommand():
-		conf, dir, err := LoadConfig(".", true)
+		config, err := LoadConfig(".", true)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		AddLicense(dir, conf, *licenseName)
+		AddLicense(config, *licenseName)
 	}
 }

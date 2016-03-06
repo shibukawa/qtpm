@@ -58,6 +58,19 @@ there are two ways to specify the Qt location.
 
 If you don't use the both settings and Qt is not in ``CMAKE_PREFIX_PATH``, qtpm tries to search any locations.
 
+Name Convention
+--------------------
+
+This tool behaves according to the convention over any configuration.
+
+* Source and header files are under ``src`` folder.
+* Tests are under ``test`` folder.
+* Resources are under ``resource`` folder.
+* One project folder includes one executable file or one shared library as the output.
+* If there is ``src/main.cpp``, qtpm generates executable, otherwise shared library
+* Each test classes are implemented in ``test/*_test.cpp`` files (no header files) and compiled into executable.
+* Other ``.cpp`` files in ``test`` are treated test utility. They are linked with each test executables.
+
 Project File
 -----------------
 
@@ -66,7 +79,6 @@ Project file is written in TOML format.
 * ``name``: Project name.
 * ``author``: Author name.
 * ``license``: License name.
-* ``type``: ``'application'`` or ``'library'``.
 * ``requires``: Dependency packages like ``'github.com/shibukawa/qtobubus'`` (this feature is not implemented yet).
 * ``qtmodules``: Required qt modules like ``Widgets``, ``Xml``.
 * ``version``: Version number like ``[1, 0, 0]``.

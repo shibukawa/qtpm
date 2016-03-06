@@ -18,17 +18,18 @@ type PackageConfig struct {
 	QtModules     []string `toml:"qtmodules"`
 	Version       []int    `toml:"version"`
 	IsApplication bool     `toml:"-"`
+	Dir           string   `toml:"-"`
 }
 
 type PackageUserConfig struct {
 	QtDir string `toml:"qtdir"`
 }
 
-func LoadConfig(dir string, traverse bool) (*PackageConfig, string, error) {
+func LoadConfig(dir string, traverse bool) (*PackageConfig, error) {
 	origDir := dir
 	dir, err := filepath.Abs(dir)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	for {
 		filePath := filepath.Join(dir, packageFileName)
@@ -37,11 +38,20 @@ func LoadConfig(dir string, traverse bool) (*PackageConfig, string, error) {
 			config := &PackageConfig{}
 			_, err := toml.DecodeReader(file, config)
 			if err != nil {
-				return nil, "", err
+				return nil, err
 			}
 			_, err = os.Stat(filepath.Join(dir, "src", "main.cpp"))
 			config.IsApplication = !os.IsNotExist(err)
-			return config, dir, nil
+			config.Dir = dir
+			switch len(config.Version) {
+			case 0:
+				config.Version = append(config.Version, 1, 0, 0)
+			case 1:
+				config.Version = append(config.Version, 0, 0)
+			case 2:
+				config.Version = append(config.Version, 0)
+			}
+			return config, nil
 		}
 		parent := filepath.Dir(dir)
 		if dir == parent || !traverse {
@@ -49,7 +59,7 @@ func LoadConfig(dir string, traverse bool) (*PackageConfig, string, error) {
 		}
 		dir = parent
 	}
-	return nil, "", fmt.Errorf("can't find '%s' at %s", packageFileName, origDir)
+	return nil, fmt.Errorf("can't find '%s' at %s", packageFileName, origDir)
 }
 
 func LoadUserConfig(dir string) (*PackageUserConfig, error) {
@@ -70,12 +80,8 @@ func LoadUserConfig(dir string) (*PackageUserConfig, error) {
 	return nil, fmt.Errorf("can't find '%s' at %s", userPackageFileName, dir)
 }
 
-func (config *PackageConfig) Save(dir string) error {
-	dir, err := filepath.Abs(dir)
-	if err != nil {
-		return err
-	}
-	file, err := os.Create(filepath.Join(dir, packageFileName))
+func (config *PackageConfig) Save() error {
+	file, err := os.Create(filepath.Join(config.Dir, packageFileName))
 	if err != nil {
 		return err
 	}

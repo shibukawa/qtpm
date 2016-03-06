@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 )
@@ -19,17 +20,62 @@ type SourceVariable struct {
 	VersionMinor     int
 	VersionMajor     int
 	VersionPatch     int
-	HasTest          bool
 	QtModules        []string
 	Sources          []string
 	Headers          []string
 	Resources        []string
 	Tests            []string
-	ExtraTestSources string
+	ExtraTestSources []string
 }
 
 func (sv SourceVariable) Hash() string {
 	return "abc"
+}
+
+func (sv *SourceVariable) SearchFiles(dir string) {
+	sources, err := ioutil.ReadDir(filepath.Join(dir, "src"))
+	if err == nil {
+		var extraTestSources []string
+		for _, source := range sources {
+			name := source.Name()
+			path := "${PROJECT_SOURCE_DIR}/src/" + name
+			if strings.HasSuffix(name, ".cpp") && name != "main.cpp" {
+				sv.Sources = append(sv.Sources, path)
+				extraTestSources = append(extraTestSources, path)
+			} else if strings.HasSuffix(name, ".h") {
+				sv.Headers = append(sv.Headers, path)
+			}
+		}
+	}
+
+	resources, err := ioutil.ReadDir(filepath.Join(dir, "resource"))
+	if err == nil {
+		for _, resource := range resources {
+			name := resource.Name()
+			if strings.HasSuffix(name, ".qrc") {
+				sv.Resources = append(sv.Resources, name)
+			}
+		}
+	}
+	tests, err := ioutil.ReadDir(filepath.Join(dir, "test"))
+	if err == nil {
+		for _, test := range tests {
+			name := test.Name()
+			if !strings.HasSuffix(name, ".cpp") {
+				continue
+			}
+			if strings.HasSuffix(name, "_test.cpp") {
+				sv.Tests = append(sv.Tests, name[:len(name)-4])
+			} else {
+				sv.ExtraTestSources = append(sv.ExtraTestSources, name)
+			}
+		}
+	}
+	sort.Strings(sv.Sources)
+	sort.Strings(sv.Headers)
+	sort.Strings(sv.Resources)
+	sort.Strings(sv.Tests)
+	sort.Strings(sv.ExtraTestSources)
 }
 
 func AddTest(basePath, name string) {
@@ -51,111 +97,39 @@ func AddClass(basePath, name string, isLibrary bool) {
 	WriteTemplate(basePath, "src", strings.ToLower(className)+".cpp", "classsource.cpp", variable)
 }
 
-func AddLicense(basePath string, config *PackageConfig, name string) {
+func AddLicense(config *PackageConfig, name string) {
 	licenseKey, licenseName, err := NormalizeLicense(name)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	config.License = licenseName
-	WriteLicense(basePath, licenseKey)
-	config.Save(basePath)
+	WriteLicense(config.Dir, licenseKey)
+	config.Save()
 }
 
-func AddCMakeForApp(basePath string, config *PackageConfig) {
+func AddCMakeForApp(config *PackageConfig) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
 		QtModules: InsertCore(config.QtModules),
 		Library:   true,
 	}
-	sources, err := ioutil.ReadDir("src")
-	if err != nil {
-		return
-	}
-	var extraTestSources []string
-	for _, source := range sources {
-		name := source.Name()
-		path := "${PROJECT_SOURCE_DIR}/src/" + name
-		if strings.HasSuffix(name, ".cpp") && name != "main.cpp" {
-			variable.Sources = append(variable.Sources, path)
-			extraTestSources = append(extraTestSources, path)
-		} else if strings.HasSuffix(name, ".h") {
-			variable.Headers = append(variable.Headers, path)
-		}
-	}
-
-	resources, err := ioutil.ReadDir("resource")
-	if err != nil {
-		return
-	}
-	for _, resource := range resources {
-		variable.Resources = append(variable.Resources, "${PROJECT_SOURCE_DIR}/resource/"+resource.Name())
-	}
-
-	tests, err := ioutil.ReadDir("test")
-	if err == nil {
-		for _, test := range tests {
-			if !strings.HasSuffix(test.Name(), ".cpp") {
-				continue
-			}
-			if strings.HasSuffix(test.Name(), "_test.cpp") {
-				variable.Tests = append(variable.Tests, test.Name()[:len(test.Name())-4])
-			} else {
-				extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/test/"+test.Name())
-			}
-		}
-	}
-	variable.HasTest = len(variable.Tests) > 0
-	variable.ExtraTestSources = strings.Join(extraTestSources, " ")
-	WriteTemplate(basePath, "", "CMakeLists.txt", "CMakeListsApp.txt", variable)
+	variable.SearchFiles(config.Dir)
+	WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsApp.txt", variable)
 }
 
-func AddCMakeForLib(basePath string, config *PackageConfig) {
+func AddCMakeForLib(config *PackageConfig) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
 		QtModules: InsertCore(config.QtModules),
 		Library:   true,
 	}
-	switch len(config.Version) {
-	case 0:
-		variable.VersionMajor = 1
-	case 1:
-		variable.VersionMajor = config.Version[0]
-	case 2:
-		variable.VersionMajor = config.Version[0]
-		variable.VersionMinor = config.Version[1]
-	default:
-		variable.VersionMajor = config.Version[0]
-		variable.VersionMinor = config.Version[1]
-		variable.VersionPatch = config.Version[2]
-	}
-	sources, err := ioutil.ReadDir("src")
-	if err != nil {
-		return
-	}
-	var extraTestSources []string
-	for _, source := range sources {
-		if strings.HasSuffix(source.Name(), ".cpp") {
-			variable.Sources = append(variable.Sources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
-			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/src/"+source.Name())
-		}
-	}
-	tests, err := ioutil.ReadDir("test")
-	if err == nil {
-		for _, test := range tests {
-			if !strings.HasSuffix(test.Name(), ".cpp") {
-				continue
-			}
-			if strings.HasSuffix(test.Name(), "_test.cpp") {
-				variable.Tests = append(variable.Tests, test.Name()[:len(test.Name())-4])
-			}
-			extraTestSources = append(extraTestSources, "${PROJECT_SOURCE_DIR}/test/"+test.Name())
-		}
-	}
-	variable.HasTest = len(variable.Tests) > 0
-	variable.ExtraTestSources = strings.Join(extraTestSources, " ")
+	variable.VersionMajor = config.Version[0]
+	variable.VersionMinor = config.Version[1]
+	variable.VersionPatch = config.Version[2]
+	variable.SearchFiles(config.Dir)
 
-	WriteTemplate(basePath, "", "CMakeLists.txt", "CMakeListsLib.txt", variable)
-	WriteTemplate(basePath, "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
+	WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsLib.txt", variable)
+	WriteTemplate(config.Dir, "", "CMakeExtra.txt", "CMakeExtra.txt", variable)
 }
 
 func WriteTemplate(basePath, dir, fileName, templateName string, variable *SourceVariable) error {
