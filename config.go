@@ -5,6 +5,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 const packageFileName = "qtpackage.toml"
@@ -85,8 +86,24 @@ func (config *PackageConfig) Save() error {
 	if err != nil {
 		return err
 	}
+	config.Requires = removeDuplicate(config.Requires)
+	config.QtModules = removeDuplicate(config.QtModules)
+	sort.Strings(config.Requires)
+	sort.Strings(config.QtModules)
 	encoder := toml.NewEncoder(file)
 	return encoder.Encode(config)
+}
+
+func removeDuplicate(input []string) []string {
+	exists := map[string]bool{}
+	var output []string
+	for _, entry := range input {
+		if !exists[entry] {
+			exists[entry] = true
+			output = append(output, entry)
+		}
+	}
+	return output
 }
 
 func UserName() string {

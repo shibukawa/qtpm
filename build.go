@@ -36,23 +36,42 @@ func Test(refresh bool) {
 	}
 }
 
+func BuildChildPackage(rootPackageDir, childPackageDir string, refresh, install bool) {
+	childConfig, err := LoadConfig(childPackageDir, false)
+	if err != nil {
+		_, err := os.Stat(filepath.Join(childPackageDir, "CMakeLists.txt"))
+		if os.IsNotExist(err) {
+			return // nothing to do
+		}
+		// launch regular CMake
+		RunCMake(rootPackageDir, childPackageDir, filepath.Join(rootPackageDir, "vendor"), true, true)
+	} else {
+		BuildPackage(rootPackageDir, childConfig, true, true)
+	}
+}
+
 func BuildPackage(rootPackageDir string, config *PackageConfig, refresh, install bool) {
-	buildPath := filepath.Join(config.Dir, "build")
-	vendorPath := filepath.Join(rootPackageDir, "vendor")
+	var vendorPath string
 	var changed bool
 	var err error
 	if config.IsApplication {
 		changed, err = AddCMakeForApp(config, refresh)
 	} else {
 		changed, err = AddCMakeForLib(config, refresh)
+		vendorPath = filepath.Join(rootPackageDir, "vendor")
 	}
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if changed {
+	RunCMake(rootPackageDir, config.Dir, vendorPath, changed, install)
+}
+
+func RunCMake(rootPackageDir, packageDir, vendorPath string, update, install bool) {
+	buildPath := filepath.Join(packageDir, "build")
+	if update {
 		os.MkdirAll(buildPath, 0744)
 		var cmd *exec.Cmd
-		if config.IsApplication {
+		if vendorPath == "" {
 			cmd = exec.Command("cmake", "..")
 		} else {
 			cmd = exec.Command("cmake", "..", "-DCMAKE_INSTALL_PREFIX="+vendorPath)

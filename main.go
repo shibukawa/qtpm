@@ -13,8 +13,7 @@ var (
 	refreshBuildFlag  = buildCommand.Flag("refresh", "Refresh cache").Short('r').Bool()
 	cleanCommand      = app.Command("clean", "Clean temp files")
 	getCommand        = app.Command("get", "Get package")
-	saveFlag          = getCommand.Flag("save", "Save package as a dependency module").Bool()
-	saveDevFlag       = getCommand.Flag("save-dev", "Save package as a dependency module").Bool()
+	getUpdateFlag     = getCommand.Flag("update", "Update package to the latest").Short('f').Bool()
 	getPackageName    = getCommand.Arg("package", "Package name on git repository").String()
 	installCommand    = app.Command("install", "Install program")
 	testCommand       = app.Command("test", "Test package")
@@ -42,7 +41,7 @@ func main() {
 	case cleanCommand.FullCommand():
 		panic("not implemented yet")
 	case getCommand.FullCommand():
-		panic("not implemented yet: " + *getPackageName)
+		Get(*getPackageName, *getUpdateFlag)
 	case installCommand.FullCommand():
 		panic("not implemented yet")
 	case testCommand.FullCommand():
