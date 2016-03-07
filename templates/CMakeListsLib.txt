@@ -55,7 +55,7 @@ qt5_use_modules([[.TargetSmall]][[range $module := $root.QtModules]] [[$module]]
 enable_testing()
 find_package(Qt5Test REQUIRED)
 [[range $test := .Tests]]
-add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp[[range $source := $root.ExtraTestSources]] {PROJECT_SOURCE_DIR}/test/[[$source]][[end]][[if gt (len $root.Resources) 0]] ${QRC}[[end]])
+add_executable([[$test]] ${PROJECT_SOURCE_DIR}/test/[[$test]].cpp[[range $source := $root.Sources]] [[$source]][[end]][[range $source := $root.ExtraTestSources]] {PROJECT_SOURCE_DIR}/test/[[$source]][[end]][[if gt (len $root.Resources) 0]] ${QRC}[[end]])
 add_test(NAME [[$test]] COMMAND [[$test]] WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/build)
 qt5_use_modules([[$test]] Test[[range $module := $root.QtModules]] [[$module]][[end]])
 [[end]]
@@ -63,4 +63,4 @@ qt5_use_modules([[$test]] Test[[range $module := $root.QtModules]] [[$module]][[
 # install setting
 
 INSTALL(TARGETS [[.TargetSmall]] LIBRARY DESTINATION lib)
-INSTALL(FILES[[range $header := .Headers]] [[$header]][[end]] DESTINATION include/[[.TargetSmall]])
+[[if gt (len .InstallHeaders) 0]]INSTALL(FILES[[range $header := .InstallHeaders]] [[$header]][[end]] DESTINATION include/[[.TargetSmall]])[[end]]

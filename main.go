@@ -10,6 +10,7 @@ var (
 	app               = kingpin.New("qtpm", "Package Manager fot Qt")
 	verbose           = app.Flag("verbose", "Set verbose mode").Short('v').Bool()
 	buildCommand      = app.Command("build", "Build program")
+	refreshBuildFlag  = buildCommand.Flag("refresh", "Refresh cache").Short('r').Bool()
 	cleanCommand      = app.Command("clean", "Clean temp files")
 	getCommand        = app.Command("get", "Get package")
 	saveFlag          = getCommand.Flag("save", "Save package as a dependency module").Bool()
@@ -17,6 +18,7 @@ var (
 	getPackageName    = getCommand.Arg("package", "Package name on git repository").String()
 	installCommand    = app.Command("install", "Install program")
 	testCommand       = app.Command("test", "Test package")
+	refreshTestFlag   = testCommand.Flag("refresh", "Refresh cache").Short('r').Bool()
 	initCommand       = app.Command("init", "Initialize package")
 	initAppCommand    = initCommand.Command("app", "Initialize application")
 	appName           = initAppCommand.Arg("name", "Application name").String()
@@ -36,7 +38,7 @@ var (
 func main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case buildCommand.FullCommand():
-		Build()
+		Build(*refreshBuildFlag)
 	case cleanCommand.FullCommand():
 		panic("not implemented yet")
 	case getCommand.FullCommand():
@@ -44,7 +46,7 @@ func main() {
 	case installCommand.FullCommand():
 		panic("not implemented yet")
 	case testCommand.FullCommand():
-		panic("not implemented yet")
+		Test(*refreshTestFlag)
 	case initAppCommand.FullCommand():
 		InitApplication(*appName, *appLicense)
 	case initLibCommand.FullCommand():

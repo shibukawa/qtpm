@@ -10,23 +10,41 @@ import (
 	"strings"
 )
 
-func Build() {
+func Build(refresh bool) {
 	config, err := LoadConfig(".", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	BuildPackage(config.Dir, config)
+	BuildPackage(config.Dir, config, refresh, !config.IsApplication)
 }
 
-func BuildPackage(rootPackageDir string, config *PackageConfig) {
+func Test(refresh bool) {
+	config, err := LoadConfig(".", true)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	BuildPackage(config.Dir, config, refresh, false)
+	makeCmd := exec.Command("make", "test")
+	buildPath := filepath.Join(config.Dir, "build")
+	makeCmd.Dir = buildPath
+	makeCmd.Env = append(makeCmd.Env, "CTEST_OUTPUT_ON_FAILURE=1")
+
+	out, err := makeCmd.CombinedOutput()
+	log.Println(string(out))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func BuildPackage(rootPackageDir string, config *PackageConfig, refresh, install bool) {
 	buildPath := filepath.Join(config.Dir, "build")
 	vendorPath := filepath.Join(rootPackageDir, "vendor")
 	var changed bool
 	var err error
 	if config.IsApplication {
-		changed, err = AddCMakeForApp(config)
+		changed, err = AddCMakeForApp(config, refresh)
 	} else {
-		changed, err = AddCMakeForLib(config)
+		changed, err = AddCMakeForLib(config, refresh)
 	}
 	if err != nil {
 		log.Fatalln(err)
@@ -57,7 +75,7 @@ func BuildPackage(rootPackageDir string, config *PackageConfig) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if !config.IsApplication {
+	if install {
 		makeCmd := exec.Command("make", "install")
 		makeCmd.Dir = buildPath
 		out, err := makeCmd.CombinedOutput()

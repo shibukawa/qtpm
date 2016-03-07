@@ -25,26 +25,32 @@ type SourceVariable struct {
 	QtModules        []string
 	Sources          []string
 	Headers          []string
+	InstallHeaders   []string
 	Resources        []string
 	Tests            []string
 	ExtraTestSources []string
 }
 
 func (sv *SourceVariable) SearchFiles(dir string) {
-	sources, err := ioutil.ReadDir(filepath.Join(dir, "src"))
-	if err == nil {
-		var extraTestSources []string
-		for _, source := range sources {
-			name := source.Name()
-			path := "${PROJECT_SOURCE_DIR}/src/" + name
-			if strings.HasSuffix(name, ".cpp") && name != "main.cpp" {
-				sv.Sources = append(sv.Sources, path)
-				extraTestSources = append(extraTestSources, path)
-			} else if strings.HasSuffix(name, ".h") {
-				sv.Headers = append(sv.Headers, path)
+	srcDir := filepath.Join(dir, "src")
+	err := filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		path = path[len(srcDir)+1:]
+		outputPath := "${PROJECT_SOURCE_DIR}/src/" + path
+		if strings.HasSuffix(path, ".cpp") && path != "main.cpp" {
+			sv.Sources = append(sv.Sources, outputPath)
+		} else if strings.HasSuffix(path, ".h") {
+			sv.Headers = append(sv.Headers, outputPath)
+			// in top src folder
+			if path == info.Name() {
+				sv.InstallHeaders = append(sv.InstallHeaders, outputPath)
 			}
 		}
-	}
+
+		return nil
+	})
 
 	resources, err := ioutil.ReadDir(filepath.Join(dir, "resource"))
 	if err == nil {
@@ -71,6 +77,7 @@ func (sv *SourceVariable) SearchFiles(dir string) {
 	}
 	sort.Strings(sv.Sources)
 	sort.Strings(sv.Headers)
+	sort.Strings(sv.InstallHeaders)
 	sort.Strings(sv.Resources)
 	sort.Strings(sv.Tests)
 	sort.Strings(sv.ExtraTestSources)
@@ -105,7 +112,7 @@ func AddLicense(config *PackageConfig, name string) {
 	config.Save()
 }
 
-func AddCMakeForApp(config *PackageConfig) (bool, error) {
+func AddCMakeForApp(config *PackageConfig, refresh bool) (bool, error) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
 		QtModules: InsertCore(config.QtModules),
@@ -114,10 +121,10 @@ func AddCMakeForApp(config *PackageConfig) (bool, error) {
 	variable.SearchFiles(config.Dir)
 	sort.Strings(variable.QtModules)
 	sort.Strings(variable.Requires)
-	return WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsApp.txt", variable, true)
+	return WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsApp.txt", variable, !refresh)
 }
 
-func AddCMakeForLib(config *PackageConfig) (bool, error) {
+func AddCMakeForLib(config *PackageConfig, refresh bool) (bool, error) {
 	variable := &SourceVariable{
 		Target:    CleanName(config.Name),
 		QtModules: InsertCore(config.QtModules),
@@ -131,7 +138,7 @@ func AddCMakeForLib(config *PackageConfig) (bool, error) {
 	sort.Strings(variable.Requires)
 
 	WriteTemplate(config.Dir, "", "CMakeExtra.txt", "CMakeExtra.txt", variable, false)
-	return WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsLib.txt", variable, true)
+	return WriteTemplate(config.Dir, "", "CMakeLists.txt", "CMakeListsLib.txt", variable, !refresh)
 }
 
 func WriteTemplate(basePath, dir, fileName, templateName string, variable *SourceVariable, checkFileChange bool) (bool, error) {
